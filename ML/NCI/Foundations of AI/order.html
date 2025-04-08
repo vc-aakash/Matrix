@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Place Your Order</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .background {
+      background: url('https://images.unsplash.com/photo-1600891964599-f61ba0e24092?auto=format&fit=crop&w=1600&q=80') no-repeat center center fixed;
+      background-size: cover;
+      height: 100%;
+      position: relative;
+      transition: filter 0.3s ease;
+    }
+
+    .background.blurred {
+      filter: blur(8px);
+    }
+
+    .overlay {
+      background-color: rgba(0, 0, 0, 0.6);
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+    }
+
+    .content {
+      position: relative;
+      z-index: 2;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      color: #ffffff;
+      padding: 20px;
+    }
+
+    .content h1 {
+      font-size: 56px;
+      font-weight: 800;
+      margin-bottom: 15px;
+      text-shadow: 2px 2px 10px rgba(0,0,0,0.8);
+    }
+
+    .content p {
+      font-size: 24px;
+      font-weight: 500;
+      max-width: 700px;
+      line-height: 1.6;
+      color: #ddd;
+      text-shadow: 1px 1px 6px rgba(0,0,0,0.6);
+    }
+
+    .place-btn {
+      position: absolute;
+      bottom: 100px;
+      right: 100px;
+      background: #ffca28;
+      color: #000;
+      border: none;
+      padding: 24px 52px;
+      font-size: 22px;
+      font-weight: bold;
+      border-radius: 14px;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(255, 202, 40, 0.6);
+      transition: all 0.3s ease;
+      z-index: 2;
+    }
+
+    .place-btn:hover {
+      background: #ffd54f;
+      box-shadow: 0 0 20px rgba(255, 213, 79, 0.9);
+      transform: translateY(-4px);
+    }
+
+    /* Modal Styles */
+    #confirmModal {
+      display: none;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: rgba(0,0,0,0.7);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+
+    .modal-content {
+      background: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      text-align: center;
+      width: 320px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.3);
+    }
+
+    .modal-content h2 {
+      margin-bottom: 15px;
+      color: #333;
+    }
+
+    .modal-content p {
+      font-size: 18px;
+      margin-bottom: 25px;
+      color: #555;
+    }
+
+    .modal-content button {
+      padding: 10px 20px;
+      font-weight: bold;
+      border: none;
+      border-radius: 6px;
+      margin: 0 10px;
+      cursor: pointer;
+    }
+
+    .modal-content .yes-btn {
+      background-color: #4caf50;
+      color: white;
+    }
+
+    .modal-content .no-btn {
+      background-color: #f44336;
+      color: white;
+    }
+
+    /* Popup Message */
+    #orderPopup {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #ffffff;
+      border: 2px solid #333;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.3);
+      z-index: 10000;
+      text-align: center;
+    }
+
+    #orderPopup button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background: #4caf50;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="background" id="background">
+    <div class="overlay"></div>
+    <div class="content">
+      <h1>Hungry? We’ve Got You Covered</h1>
+      <p>Click below to start placing your order and enjoy freshly captured service with us</p>
+    </div>
+    <button class="place-btn" onclick="placeOrder()">📦 Place Order</button>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div id="confirmModal">
+    <div class="modal-overlay">
+      <div class="modal-content">
+        <h2>Consent</h2>
+        <p>To enhance your experience,
+           we use facial recognition during order pickup to collect your review. 
+          By selecting <strong>Yes</strong>, you consent to a photo being taken for this purpose. 
+          Your photo will not be stored or shared.</p>
+        <button class="yes-btn" onclick="confirmYes()">Yes</button>
+        <button class="no-btn" onclick="confirmNo()">No</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Pop-up for Order Number -->
+  <div id="orderPopup">
+    <p id="popupMessage"></p>
+    <button onclick="closePopup()">OK</button>
+  </div>
+
+  <script>
+    // Always reset order number to 1 on page load
+    window.onload = () => {
+      localStorage.setItem("order_number", "1");
+    };
+
+    function getOrderNumber() {
+      return parseInt(localStorage.getItem("order_number")) || 1;
+    }
+
+    function incrementOrderNumber() {
+      let orderNum = getOrderNumber();
+      localStorage.setItem("order_number", (orderNum + 1).toString());
+    }
+
+    function placeOrder() {
+      document.getElementById('background').classList.add('blurred');
+      document.getElementById('confirmModal').style.display = 'block';
+    }
+
+    function confirmYes() {
+      const url = 'http://127.0.0.1:5000/order';
+
+      fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hasConsented: true })
+      })
+      .then(response => response.json())
+      .then(data => {
+      console.log("Consent Given:", data);
+      document.getElementById('confirmModal').style.display = 'none';
+      showOrderPopup(data.orderNum);
+      })
+      .catch(error => {
+      console.error("POST error:", error);
+      });
+    }
+
+    function confirmNo() {
+      const url = 'http://127.0.0.1:5000/order';
+
+      fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hasConsented: false })
+      })
+      .then(response => response.json())
+      .then(data => {
+      console.log("Consent Denied:", data);
+      document.getElementById('confirmModal').style.display = 'none';
+      showOrderPopup(data.orderNum);
+      })
+      .catch(error => {
+      console.error("POST error:", error);
+      });
+    }
+
+    function showOrderPopup(orderNumber) {
+      document.getElementById('popupMessage').innerText = `✅ Your order number is #${orderNumber}`;
+      document.getElementById('orderPopup').style.display = 'block';
+    }
+
+    function closePopup() {
+      document.getElementById('orderPopup').style.display = 'none';
+      document.getElementById('background').classList.remove('blurred');
+    }
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Prime Check in WebAssembly</title>
+    <script>
+        var Module = {};
+        
+        function loadWasm() {
+            return new Promise((resolve) => {
+                Module = Module || {};
+                Module.onRuntimeInitialized = () => resolve(Module);
+                var script = document.createElement('script');
+                script.src = "prime.js";
+                document.body.appendChild(script);
+            });
+        }
+
+        async function checkPrime() {
+            let num = parseInt(document.getElementById("inputNumber").value);
+            if (isNaN(num)) {
+                document.getElementById("result").innerText = "Enter a valid number!";
+                return;
+            }
+
+            let wasmModule = await loadWasm();  // Wait until WebAssembly is fully loaded
+            let result = wasmModule._is_prime(num);
+            document.getElementById("result").innerText = result ? num + " is prime!" : num + " is not prime.";
+        }
+    </script>
+</head>
+<body>
+    <h2>Check if a Number is Prime</h2>
+    <input type="number" id="inputNumber" placeholder="Enter a number">
+    <button onclick="checkPrime()">Check Prime</button>
+    <p id="result"></p>
+</body>
+</html>

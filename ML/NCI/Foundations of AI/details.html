@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>All Order Details</title>
+  <style>
+    body {
+      background: #fff9c4;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      max-width: 1000px;
+      margin: auto;
+    }
+
+    .card {
+      background: white;
+      border-radius: 10px;
+      padding: 15px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    img {
+      margin-top: 10px;
+      width: 220px;
+      height: 180px;
+      border: 2px solid #333;
+      border-radius: 10px;
+    }
+
+    .back-btn {
+      margin-top: 30px;
+      background: #fbc02d;
+      border: none;
+      padding: 15px 30px;
+      font-size: 18px;
+      font-weight: bold;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h2>📦 All Order Details</h2>
+  <div class="grid" id="ordersGrid"></div>
+
+  <button class="back-btn" onclick="goBack()">⬅️ Back to Orders</button>
+
+  <script>
+    const orders = JSON.parse(sessionStorage.getItem("allOrders")) || [];
+    const grid = document.getElementById("ordersGrid");
+
+    if (orders.length === 0) {
+      grid.innerHTML = "<p>No orders selected.</p>";
+    } else {
+      orders.forEach(order => {
+        // ✅ Display each order
+        const div = document.createElement("div");
+        div.className = "card";
+        div.innerHTML = `
+          <h3>Order #${order.orderNum}</h3>
+          ${order.image 
+            ? `<img src="${order.image}" alt="Order Photo" />` 
+            : `<p><strong>NILL</strong></p>`}
+        `;
+        grid.appendChild(div);
+
+        // ✅ POST each order as JSON
+        postOrder(order);
+      });
+    }
+
+    function postOrder(order) {
+      fetch('https://httpbin.org/post',  // 🔁 Replace with your actual API endpoint
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          order_number: order.number,
+          image: order.image ? order.image : null
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        console.log(`✅ Sent Order #${order.number}:`, data.json);
+      })
+      .catch(err => {
+        console.error(`❌ Failed to send Order #${order.number}:`, err);
+      });
+    }
+
+    function goBack() {
+      window.location.href = "index.html";
+    }
+  </script>
+</body>
+</html>

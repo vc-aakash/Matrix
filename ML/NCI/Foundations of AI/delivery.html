@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Order Capture Grid</title>
+  <style>
+    body {
+      background: #fff176;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .order-buttons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 20px;
+      width: 720px;
+      margin: 0 auto;
+    }
+
+    .order-btn, .next-btn {
+      background: #fbc02d;
+      border: none;
+      border-radius: 10px;
+      padding: 20px 30px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    video, canvas {
+      display: none;
+    }
+
+    .fixed-button {
+      position: fixed;
+      bottom: 20px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+  <h2>🍔 Select Your Orders</h2>
+  <div class="order-buttons" id="buttonContainer"></div>
+
+  <video id="webcam" autoplay playsinline></video>
+  <canvas id="canvas" width="640" height="480"></canvas>
+
+  <div id="nextPageArea"></div>
+ 
+  <script>
+    const buttonContainer = document.getElementById('buttonContainer');
+    const nextPageArea = document.getElementById('nextPageArea');
+    const allOrders = [];
+
+    // ✅ Fetch order list (adjust URL or file path)
+    fetch('http://127.0.0.1:5000/get-orders')
+    // You can change this to your API endpoint
+      .then(res => res.json())
+      .then(data => {
+      data.forEach(order => {
+        createOrderButton(order._id, order.orderNum, order.hasConsented);
+      });
+      })
+      .catch(err => {
+      console.error("Failed to fetch order data:", err);
+      });
+
+    function createOrderButton(orderId, orderNum, hasConsented) {
+      const btn = document.createElement('button');
+      btn.className = 'order-btn';
+      btn.textContent = `${orderNum}`;
+      btn.setAttribute('data-order', orderNum);
+      btn.onclick = () => handleOrder(orderId, orderNum, hasConsented, btn);
+      buttonContainer.appendChild(btn);
+    }
+
+    function handleOrder(orderId, orderNum, hasConsented, btnElement) {
+      const currentOrder = {
+        number: orderNum,
+        image: null,
+      };
+
+      if (hasConsented === true) {
+        captureImage().then(base64 => {
+          const formData = new FormData();
+          formData.append('orderId', orderId);
+          formData.append('image', base64ToBlob(base64), `${orderNum}.png`);
+
+          fetch('http://127.0.0.1:5000/process-facial-data', {
+        method: 'POST',
+        body: formData,
+          })
+          .then(response => response.json())
+          .then(data => {
+        console.log("Image processed successfully:", data);
+        currentOrder.image = base64;
+        allOrders.push(currentOrder);
+        showNextButton();
+          })
+          .catch(err => {
+        console.error("Failed to process image:", err);
+          })
+          .finally(() => {
+        fetch('http://127.0.0.1:5000/complete-order', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ orderId }),
+        })
+        .then(response => response.json())
+        .then(data => {
+          console.log("Order processed successfully:", data);
+        })
+        .catch(err => {
+          console.error("Failed to process order:", err);
+        });
+          });
+        });
+      } else {
+        allOrders.push(currentOrder);
+        showNextButton();
+        fetch('http://127.0.0.1:5000/complete-order', {
+          method: 'POST',
+          headers: {
+        'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ orderId }),
+        })
+        .then(response => response.json())
+        .then(data => {
+          console.log("Order processed successfully:", data);
+        })
+        .catch(err => {
+          console.error("Failed to process order:", err);
+        });
+      }
+
+      function base64ToBlob(base64) {
+        const byteString = atob(base64.split(',')[1]);
+        const mimeString = base64.split(',')[0].split(':')[1].split(';')[0];
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i);
+        }
+        return new Blob([ab], { type: mimeString });
+      }
+
+      if (btnElement) btnElement.remove();
+    }
+
+    function captureImage() {
+      return new Promise((resolve) => {
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('canvas');
+
+        navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+          video.srcObject = stream;
+
+          video.onloadedmetadata = () => {
+            setTimeout(() => {
+              const context = canvas.getContext('2d');
+              context.drawImage(video, 0, 0, canvas.width, canvas.height);
+              const imageData = canvas.toDataURL("image/png");
+
+              stream.getTracks().forEach(track => track.stop());
+              resolve(imageData);
+            }, 500);
+          };
+        }).catch(err => {
+          console.error("Camera error:", err);
+          resolve(null);
+        });
+      });
+    }
+
+    function showNextButton() {
+      nextPageArea.innerHTML = `
+        <div class="fixed-button">
+          <button class="next-btn" onclick="goToDetailsPage()">➡️ View All Captured Orders</button>
+        </div>
+      `;
+    }
+
+    function goToDetailsPage() {
+      sessionStorage.setItem("allOrders", JSON.stringify(allOrders));
+      window.location.href = `details.html`;
+    }
+  </script>
+</body>
+</html>

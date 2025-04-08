@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SATISFACTION SCORE ANALYSIS</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        canvas {
+            max-width: 1000px; /* Increased size */
+            max-height: 600px; /* Increased size */
+            margin: 0 auto;
+        }
+        .controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        button {
+            margin: 0 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        h1 {
+        text-align: center; /* Center the title */
+        padding-bottom: 20px; /* Add padding below the title */
+        }
+    </style>
+</head>
+<body>
+    <h1>Satisfaction Score Analysis</h1>
+    <div class="controls">
+        <button onclick="updateGraph('day')">Daily</button>
+        <button onclick="updateGraph('week')">Weekly</button>
+        <button onclick="updateGraph('month')">Monthly</button>
+    </div>
+    <canvas id="satisfactionChart" width="1000" height="600"></canvas>
+
+    <script>
+        const ctx = document.getElementById('satisfactionChart').getContext('2d');
+        let chart;
+
+        async function fetchData() {
+            try {
+                const response = await fetch('http://127.0.0.1:5000/satisfaction-data'); // Replace with your API endpoint
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                return [];
+            }
+        }
+
+        function processData(data, period) {
+            const groupedData = {};
+            data.forEach(item => {
+                const date = new Date(item.date);
+                let key;
+                if (period === 'day') {
+                    key = date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+                } else if (period === 'week') {
+                    key = `${date.getFullYear()}-W${Math.ceil((date.getDate() + 6 - date.getDay()) / 7)}`;
+                } else if (period === 'month') {
+                    key = `${date.getFullYear()}-${date.getMonth() + 1}`;
+                }
+                if (!groupedData[key]) {
+                    groupedData[key] = { totalScore: 0, count: 0 };
+                }
+                groupedData[key].totalScore += item.satisfactionScore;
+                groupedData[key].count += 1;
+            });
+
+            const labels = Object.keys(groupedData).sort();
+            const averages = labels.map(label => groupedData[label].totalScore / groupedData[label].count);
+
+            return { labels, averages };
+        }
+
+        async function updateGraph(period) {
+            const data = await fetchData();
+            const { labels, averages } = processData(data, period);
+
+            if (chart) {
+                chart.destroy();
+            }
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: `Average Satisfaction Score (${period})`,
+                        data: averages,
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderWidth: 2,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: period === 'day' ? 'Days' : period === 'week' ? 'Weeks' : 'Months'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Average Satisfaction Score'
+                            },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize the graph with daily data
+        updateGraph('day');
+    </script>
+</body>
+</html>

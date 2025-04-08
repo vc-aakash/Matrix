@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Prime Check in WebAssembly</title>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.24.0/full/pyodide.js"></script>
+</head>
+<body>
+    <h2>Check Prime Number in WebAssembly (Python)</h2>
+    
+    <input type="number" id="numberInput" placeholder="Enter a number" />
+    <button onclick="checkPrime()">Check Prime</button>
+    <p id="result"></p>
+
+    <script>
+        async function main() {
+            window.pyodide = await loadPyodide();
+            await pyodide.runPythonAsync(`
+                import math
+
+                def is_prime(n: int) -> bool:
+                    """Check if a number is prime efficiently."""
+                    if n < 2:
+                        return False
+                    if n in (2, 3):
+                        return True
+                    if n % 2 == 0 or n % 3 == 0:
+                        return False
+                    
+                    limit = int(math.sqrt(n))
+                    for i in range(5, limit + 1, 6):  # 6k ± 1 optimization
+                        if n % i == 0 or n % (i + 2) == 0:
+                            return False
+                    return True
+            `);
+        }
+
+        async function checkPrime() {
+            let num = document.getElementById("numberInput").value;
+            if (num === "") {
+                document.getElementById("result").innerText = "Please enter a number.";
+                return;
+            }
+
+            num = parseInt(num);
+            let isPrime = await pyodide.runPythonAsync(`is_prime(${num})`);
+            document.getElementById("result").innerText = isPrime ? `${num} is Prime` : `${num} is NOT Prime`;
+        }
+
+        main(); // Initialize Pyodide
+    </script>
+</body>
+</html>
